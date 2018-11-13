@@ -15,7 +15,6 @@ dt = 1.0
 n = 1000
 N = 10000
 X = np.linspace(0,n*dx,n)
-K = np.linspace(0,n*dk,n)
 eps0 = 8.854e-8
 
 #   Initializing variables
