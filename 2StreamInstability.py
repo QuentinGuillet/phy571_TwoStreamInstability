@@ -15,7 +15,6 @@ dt = 1.0
 n = 1000
 N = 10000
 X = np.linspace(0,n*dx,n)
-K = np.linspace(0,n*dk,n)
 eps0 = 8.854e-8
 
 #   Initializing variables
@@ -31,9 +30,11 @@ E = np.zeros(n)
 
 def compute_ElectricField(rho):
     rho_ = np.fft.fft(rho)
-    phi_ = rho_/eps0/K**2
+    K = np.fft.fftfreq(n,dx)*2*np.pi
+    phi_[1:] = rho_[1:]/eps0/K[1:]**2
     phi = np.fft.ifft(phi_)
     E = (np.roll(phi,1)-np.roll(phi,-1))/2/dx        # E(x) = - (phi(x+dx)-phi(x-dx)/2dx)
     return E
 
-    
+X = np.linspace(0,2*10*np.pi,10)
+print(np.fft.fftfreq(10,5))   
