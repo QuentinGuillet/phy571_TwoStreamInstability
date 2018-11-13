@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
+
 Spyder Editor
 
 
@@ -36,5 +35,4 @@ def compute_ElectricField(rho):
     E = (np.roll(phi,1)-np.roll(phi,-1))/2/dx        # E(x) = - (phi(x+dx)-phi(x-dx)/2dx)
     return E
 
-X = np.linspace(0,2*np.pi,10)
-print(np.fft.fft(np.fft.ifft(X)))   
+
