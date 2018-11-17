@@ -103,19 +103,3 @@ class Plasma(object):
         np.savetxt("../results/position.dat", self.positionsstored)
         np.savetxt("../results/speed.dat", self.speedstored)
         #np.savetxt("../results/field.dat", self.electric)
-            
-q = 1
-m = 1
-eps0 = 1
-T = 1000
-n = 1000
-dt = 0.01
-dx = 1e-3
-N = 2
-pos_init = np.array([0.25,0.75])
-speed_init = np.array([0.1,-0.1])
-
-plasma = Plasma(q,m,dx,dt,n,N,T,eps0,pos_init,speed_init)
-for i in range(T):
-    plasma.move_one_turn()
-plasma.save_to_text()
