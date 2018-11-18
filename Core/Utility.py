@@ -39,8 +39,8 @@ class Plasma(object):
         self.electric = np.zeros((T,n))
         
         '''Creating the particules and information arrays'''
-        self.pos = pos_init #pos_init should be a numpy array with dimension N
-        self.speed = speed_init
+        self.pos = pos_init #pos_init should be a numpy array with dimension N (at time t=0)
+        self.speed = speed_init #at time t = dt/2, see the leapfrog algorithm
         self.rho = np.zeros(n)
         self.rho_ = np.zeros(n,dtype=np.complex64)
         self.phi = np.zeros(n)
@@ -84,17 +84,21 @@ class Plasma(object):
             self.F[i] = self.get_force(self.pos[i])
     
     
-    def move_particules(self): #Moves every particule according to the force applied and the speeds
-        self.pos += self.speed*self.dt + self.F/(2*self.m)*self.dt**2
+    def move_particules(self): #Moves every particule according to the new speed
+        self.pos += self.speed*self.dt
         self.pos %= (self.dx*self.n)
+        
+        
+    def compute_speed(self):
         self.speed += self.F/self.m*self.dt
                         
     def move_one_turn(self): #Executes a loop of the principle
         if(self.timestamp < self.T - 1):
+            self.move_particules()      # we move from to t to t + dt using v(t+dt/2)
             self.position_to_density()
             self.compute_ElectricField()
-            self.field_to_particules()
-            self.move_particules()
+            self.field_to_particules()  
+            self.compute_speed()    # we compute v(t+dt/2+ dt) using x(t+dt)
             self.timestamp += 1
             self.save_to_array()
 
