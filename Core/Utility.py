@@ -30,7 +30,9 @@ class Plasma(object):
             if j>=self.n:
                 j=0
             phi_part[i] = (self.X[(j+1)] - pos_i)*self.phi[j]/self.dx +  (pos_i - self.X[j])*self.phi[(j+1)%self.n]/self.dx
-        self.energy = np.sum(1/2*self.m*self.speed**2 - self.q*phi_part)
+        self.energy = np.sum(0.5*self.m*self.speed**2) + np.sum(0.5 * self.q*phi_part)
+        
+        
         
     def __init__(self,q,m,dx,dt,n,N,T,eps0,pos_init,speed_init):
         '''Initialization of the intern variables'''
@@ -104,8 +106,11 @@ class Plasma(object):
         self.pos %= (self.dx*self.n)
         
         
-    def compute_speed(self):
-        self.speed += self.F/self.m*self.dt
+    def compute_speed_and_energy(self): #This function is a bit weird because we need v(t) and x(t) simultaenously for a a good computation then we compute v(t+dt/2)
+                                        #This is due to the leapfrog method
+        self.speed += self.F/self.m*self.dt/2
+        self.compute_energy()
+        self.speed += self.F/self.m*self.dt/2
                         
     def move_one_turn(self): #Executes a loop of the principle
         if(self.timestamp < self.T - 1):
@@ -113,9 +118,8 @@ class Plasma(object):
             self.position_to_density()
             self.compute_ElectricField()
             self.field_to_particules()  
-            self.compute_speed()    # we compute v(t+dt/2+ dt) using x(t+dt)
+            self.compute_speed_and_energy()    # we compute v(t+dt/2+ dt) using x(t+dt)
             self.timestamp += 1
-            self.compute_energy()
             self.save_to_array()
     
         
