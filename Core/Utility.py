@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
 '''q = -1   #Charge
 dx = 0.5 #Spatial step
@@ -18,9 +17,21 @@ class Plasma(object):
    
     def save_to_array(self):
         self.positionsstored[self.timestamp] = self.pos
-        self.speedstored[self.timestamp] = self.speed   
+        self.speedstored[self.timestamp] = self.speed 
+        self.energystored[self.timestamp] = self.energy     
         #self.electric[self.timestamp] = self.E     
     
+    def compute_energy(self):
+        phi_part = np.zeros(self.N)
+        for i in range(self.N):
+            #We assume here that 0 < pos_i < self.dx*self.n so that 0<= j < n
+            pos_i = self.pos[i]
+            j = int(pos_i/self.dx)
+            if j>=self.n:
+                j=0
+            phi_part[i] = (self.X[(j+1)] - pos_i)*self.phi[j]/self.dx +  (pos_i - self.X[j])*self.phi[(j+1)%self.n]/self.dx
+        self.energy = np.sum(1/2*self.m*self.speed**2 - self.q*phi_part)
+        
     def __init__(self,q,m,dx,dt,n,N,T,eps0,pos_init,speed_init):
         '''Initialization of the intern variables'''
         self.q = q
@@ -36,6 +47,7 @@ class Plasma(object):
         self.X = np.linspace(0,n*dx,n+1) #We take the last point as a point of X to be sure the force at the limits is not absurd
         self.positionsstored = np.zeros((T,N))
         self.speedstored = np.zeros((T,N))
+        self.energystored = np.zeros(T)
         self.electric = np.zeros((T,n))
         
         '''Creating the particules and information arrays'''
@@ -46,12 +58,15 @@ class Plasma(object):
         self.phi = np.zeros(n)
         self.phi_ = np.zeros(n,dtype=np.complex64)
         self.E = np.zeros(n)
+        self.compute_energy()
         self.save_to_array()
         
         
     def barycentre(self,pos_i): #Returns the contribution of a particule at pos_i to the density on the grid
         #We assume here that 0 < pos_i < self.dx*self.n so that 0<= j < n
         j = int(pos_i/self.dx)
+        if j>=self.n:
+            j=0
         alpha = (pos_i-self.X[j])/self.dx
         return j,1-alpha,alpha
     
@@ -70,18 +85,18 @@ class Plasma(object):
         self.phi_[1:] = self.rho_[1:]/self.eps0/K[1:]**2
         self.phi = np.fft.ifft(self.phi_).real
         self.E = (np.roll(self.phi,1)-np.roll(self.phi,-1))/2/self.dx        # E(x) = - (phi(x+dx)-phi(x-dx)/2dx)
-      
-    def get_force(self,pos_i): #Returns the force applied on point qi on the grid
-        F = self.q*self.E
-        #We assume here that 0 < pos_i < self.dx*self.n so that 0<= j < n
-        j = int(pos_i/self.dx)
-        alpha = (self.X[(j+1)] - pos_i)*F[j]/self.dx +  (pos_i - self.X[j])*F[(j+1)%self.n]/self.dx
-        return alpha
-    
+ 
+ 
     def field_to_particules(self): #Transforms a field on the grid to a force applied to particules, returns the array of forces on the particules
         self.F = np.zeros(self.N)
+        Force = self.q*self.E
         for i in range(self.N):
-            self.F[i] = self.get_force(self.pos[i])
+            #We assume here that 0 < pos_i < self.dx*self.n so that 0<= j < n
+            pos_i = self.pos[i]
+            j = int(pos_i/self.dx)
+            if j>=self.n:
+                j=0
+            self.F[i] = (self.X[(j+1)] - pos_i)*Force[j]/self.dx +  (pos_i - self.X[j])*Force[(j+1)%self.n]/self.dx
     
     
     def move_particules(self): #Moves every particule according to the new speed
@@ -100,10 +115,12 @@ class Plasma(object):
             self.field_to_particules()  
             self.compute_speed()    # we compute v(t+dt/2+ dt) using x(t+dt)
             self.timestamp += 1
+            self.compute_energy()
             self.save_to_array()
-
+    
         
     def save_to_text(self):
         np.savetxt("../results/position.dat", self.positionsstored)
         np.savetxt("../results/speed.dat", self.speedstored)
+        np.savetxt("../results/energy.dat", self.energystored)
         #np.savetxt("../results/field.dat", self.electric)
