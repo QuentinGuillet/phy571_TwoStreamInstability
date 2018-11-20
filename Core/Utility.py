@@ -74,12 +74,17 @@ class Plasma(object):
     
     def position_to_density(self): #Transforms the particule positions to a density array along the grid
         self.rho = np.zeros(self.n)
+        j = (self.pos/self.dx).astype(int)
+        Xscaled = self.X[j]
+        j = np.concatenate((j,(j+1)%self.n))
+        np.add.at(self.rho,j,np.concatenate(((1-(self.pos-Xscaled)/self.dx)/self.dx,(self.pos-Xscaled)/self.dx/self.dx)))
+        '''
         for i in range(self.N):
             j,alpha,beta = self.barycentre(self.pos[i]) 
             self.rho[j] += alpha/self.dx
             self.rho[(j+1)%self.n] += beta/self.dx
         #self.rho -= 1
-        
+        '''
             
     def compute_ElectricField(self):
         self.rho_ = np.fft.fft(self.rho)
