@@ -24,14 +24,8 @@ class Plasma(object):
         #self.electric[self.timestamp] = self.E     
     
     def compute_energy(self):
-        phi_part = np.zeros(self.N)
-        for i in range(self.N):
-            #We assume here that 0 < pos_i < self.dx*self.n so that 0<= j < n
-            pos_i = self.pos[i]
-            j = int(pos_i/self.dx)
-            if j>=self.n:
-                j=0
-            phi_part[i] = (self.X[(j+1)] - pos_i)*(self.phi[j]+self.V[j])/self.dx +  (pos_i - self.X[j])*(self.phi[(j+1)%self.n]+self.V[(j+1)%self.n])/self.dx
+        j = (self.pos/self.dx).astype(int)
+        phi_part = (self.X[(j+1)] - self.pos)*(self.phi[j]+self.V[j])/self.dx +  (self.pos - self.X[j])*(self.phi[(j+1)%self.n]+self.V[(j+1)%self.n])/self.dx
         self.energy = np.sum(0.5*self.m*self.speed**2) + np.sum(0.5 * self.q*phi_part)
              
         
@@ -98,8 +92,12 @@ class Plasma(object):
  
  
     def field_to_particules(self): #Transforms a field on the grid to a force applied to particules, returns the array of forces on the particules
-        self.F = np.zeros(self.N)
+        
         Force = self.q*self.E
+        j = (self.pos/self.dx).astype(int)
+        self.F = (self.X[(j+1)] - self.pos)*Force[j]/self.dx +  (self.pos - self.X[j])*Force[(j+1)%self.n]/self.dx
+        '''
+        self.F = np.zeros(self.N)
         for i in range(self.N):
             #We assume here that 0 < pos_i < self.dx*self.n so that 0<= j < n
             pos_i = self.pos[i]
@@ -107,7 +105,10 @@ class Plasma(object):
             if j>=self.n:
                 j=0
             self.F[i] = (self.X[(j+1)] - pos_i)*Force[j]/self.dx +  (pos_i - self.X[j])*Force[(j+1)%self.n]/self.dx
-    
+        ''' 
+            
+            
+            
     
     def move_particules(self): #Moves every particule according to the new speed
         self.pos += self.speed*self.dt
