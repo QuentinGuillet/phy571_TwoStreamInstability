@@ -11,6 +11,8 @@ m = 0.1 #Mass of a particule'''
 
 
 #Classe de gestion de l'algorithme
+def zero(x):
+    return 0 
     
 class Plasma(object):
     
@@ -29,12 +31,11 @@ class Plasma(object):
             j = int(pos_i/self.dx)
             if j>=self.n:
                 j=0
-            phi_part[i] = (self.X[(j+1)] - pos_i)*self.phi[j]/self.dx +  (pos_i - self.X[j])*self.phi[(j+1)%self.n]/self.dx
+            phi_part[i] = (self.X[(j+1)] - pos_i)*(self.phi[j]+self.V[j])/self.dx +  (pos_i - self.X[j])*(self.phi[(j+1)%self.n]+self.V[(j+1)%self.n])/self.dx
         self.energy = np.sum(0.5*self.m*self.speed**2) + np.sum(0.5 * self.q*phi_part)
+             
         
-        
-        
-    def __init__(self,q,m,dx,dt,n,N,T,eps0,pos_init,speed_init):
+    def __init__(self,q,m,dx,dt,n,N,T,eps0,pos_init,speed_init,V=zero):
         '''Initialization of the intern variables'''
         self.q = q
         self.m = m
@@ -47,6 +48,8 @@ class Plasma(object):
         self.timestamp = 0
         '''Initialization of the array variables'''
         self.X = np.linspace(0,n*dx,n+1) #We take the last point as a point of X to be sure the force at the limits is not absurd
+        self.V = np.vectorize(V)(self.X[:n])
+        print(self.V)
         self.positionsstored = np.zeros((T,N))
         self.speedstored = np.zeros((T,N))
         self.energystored = np.zeros(T)
@@ -90,7 +93,7 @@ class Plasma(object):
         self.rho_ = np.fft.fft(self.rho)
         K = np.fft.fftfreq(self.n,self.dx)*2*np.pi
         self.phi_[1:] = self.rho_[1:]/self.eps0/K[1:]**2
-        self.phi = np.fft.ifft(self.phi_).real
+        self.phi = np.fft.ifft(self.phi_).real + self.V
         self.E = (np.roll(self.phi,1)-np.roll(self.phi,-1))/2/self.dx        # E(x) = - (phi(x+dx)-phi(x-dx)/2dx)
  
  
