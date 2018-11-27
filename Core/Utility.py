@@ -43,7 +43,6 @@ class Plasma(object):
         '''Initialization of the array variables'''
         self.X = np.linspace(0,n*dx,n+1) #We take the last point as a point of X to be sure the force at the limits is not absurd
         self.V = np.vectorize(V)(self.X[:n])
-        print(self.V)
         self.positionsstored = np.zeros((T,N))
         self.speedstored = np.zeros((T,N))
         self.energystored = np.zeros(T)
@@ -71,18 +70,18 @@ class Plasma(object):
     
     def position_to_density(self): #Transforms the particule positions to a density array along the grid
         self.rho = np.zeros(self.n)
-        j = (self.pos/self.dx).astype(int)
-        Xscaled = self.X[j]
-        j = np.concatenate((j,(j+1)%self.n))
-        np.add.at(self.rho,j,np.concatenate(((1-(self.pos-Xscaled)/self.dx)/self.dx,(self.pos-Xscaled)/self.dx/self.dx)))
+        indices_in_grid = (self.pos/self.dx).astype(int)
+        X_sorted = self.X[indices_in_grid]
         '''
-        for i in range(self.N):
-            j,alpha,beta = self.barycentre(self.pos[i]) 
-            self.rho[j] += alpha/self.dx
-            self.rho[(j+1)%self.n] += beta/self.dx
-        #self.rho -= 1
+        test = np.zeros(self.n)
+        j = np.concatenate((indices_in_grid,(indices_in_grid+1)%self.n))
+        np.add.at(test,j,np.concatenate(((1-(self.pos-X_sorted)/self.dx)/self.dx,(self.pos-X_sorted)/self.dx/self.dx)))
         '''
-            
+        rho_values = (1-(self.pos-X_sorted)/self.dx)/self.dx
+        np.add.at(self.rho,indices_in_grid,rho_values)
+        np.add.at(self.rho,(indices_in_grid+1)%self.n, 1/self.dx - rho_values)
+        self.rho = self.rho*self.q    
+        
     def compute_ElectricField(self):
         self.rho_ = np.fft.fft(self.rho)
         K = np.fft.fftfreq(self.n,self.dx)*2*np.pi
@@ -92,7 +91,6 @@ class Plasma(object):
  
  
     def field_to_particules(self): #Transforms a field on the grid to a force applied to particules, returns the array of forces on the particules
-        
         Force = self.q*self.E
         j = (self.pos/self.dx).astype(int)
         self.F = (self.X[(j+1)] - self.pos)*Force[j]/self.dx +  (self.pos - self.X[j])*Force[(j+1)%self.n]/self.dx
@@ -107,9 +105,6 @@ class Plasma(object):
             self.F[i] = (self.X[(j+1)] - pos_i)*Force[j]/self.dx +  (pos_i - self.X[j])*Force[(j+1)%self.n]/self.dx
         ''' 
             
-            
-            
-    
     def move_particules(self): #Moves every particule according to the new speed
         self.pos += self.speed*self.dt
         self.pos %= (self.dx*self.n)
