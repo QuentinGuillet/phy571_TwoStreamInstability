@@ -124,7 +124,7 @@ class Plasma(object):
     
         
     def save_to_text(self):
-        np.savetxt("../results/position.dat", self.positionsstored)
-        np.savetxt("../results/speed.dat", self.speedstored)
-        np.savetxt("../results/energy.dat", self.energystored)
+        np.save("../results/position.npy", self.positionsstored)
+        np.save("../results/speed.npy", self.speedstored)
+        np.save("../results/energy.npy", self.energystored)
         #np.savetxt("../results/field.dat", self.electric)
