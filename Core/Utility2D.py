@@ -71,41 +71,43 @@ class Plasma(object):
         self.rho = np.zeros((self.n,self.n))
         indices_in_grid = (self.pos/self.dx).astype(int)
         X_sorted = (self.X[[indices_in_grid[:,0]],[indices_in_grid[:,1]]])[0]
-        
-        rho_values_x = 1./4*(1-(self.pos[:,0]-X_sorted[:,0])/self.dx)/self.dx
-        rho_values_y = 1./4*(1-(self.pos[:,1]-X_sorted[:,1])/self.dx)/self.dx
+        rho_values = (self.pos-X_sorted)/self.dx
         #Affectation des coeeficients sur les 4 points entourant la particule
-        np.add.at(self.rho,(indices_in_grid[:,0],indices_in_grid[:,1]),rho_values_x + rho_values_y)
-        np.add.at(self.rho,((indices_in_grid[:,0]+1)%self.n,indices_in_grid[:,1]),              1./4 * self.dx - rho_values_x + rho_values_y)
-        np.add.at(self.rho,(indices_in_grid[:,0],(indices_in_grid[:,1]+1)%self.n),     1./4 * self.dx + rho_values_x - rho_values_y)
-        np.add.at(self.rho,((indices_in_grid[:,0]+1)%self.n,(indices_in_grid[:,1]+1)%self.n),   1./2 * self.dx - rho_values_x - rho_values_y)
-        self.rho = self.rho*self.q
+        np.add.at(self.rho,(indices_in_grid[:,0],indices_in_grid[:,1]),                         (1-rho_values[:,0])*(1-rho_values[:,1])/self.dx)
+        np.add.at(self.rho,((indices_in_grid[:,0]+1)%self.n,indices_in_grid[:,1]),              (rho_values[:,0])*(1-rho_values[:,1])/self.dx)
+        np.add.at(self.rho,(indices_in_grid[:,0],(indices_in_grid[:,1]+1)%self.n),              (1-rho_values[:,0])*(rho_values[:,1])/self.dx)
+        np.add.at(self.rho,((indices_in_grid[:,0]+1)%self.n,(indices_in_grid[:,1]+1)%self.n),   (rho_values[:,0])*(rho_values[:,1])/self.dx)
         
     def compute_ElectricField(self):
         self.rho_ = np.fft.fft2(self.rho)
-        K = np.fft.fftfreq(self.n*self.n,self.dx).reshape(self.n,self.n)*2*np.pi
-        self.phi_[1:] = self.rho_[1:]/self.eps0/K[1:]**2
+        #after this operation whe have rho_(k,l) = DFT(k,l)(self.rho), we have to compute the inverse of the laplacian accordingly
+        # That is exactly design an array K[i,j] = (i**2 + j**2)*2*np.pi/self.n of shape (self.n,self.n) and divide our fourrier transform by this array
+        # This K-array becomes obsolete then K = np.fft.fftfreq(self.n*self.n,self.dx**2).reshape(self.n,self.n)*2*np.pi
+        K = np.mgrid[0:1-1./self.n:self.n*1j, 0:1-1./self.n:self.n*1j].transpose(1,2,0)*2*np.pi
+        self.phi_[1:,1:] = self.rho_[1:,1:]/self.eps0/(np.linalg.norm(K,axis=1)[1:]**2)
         self.phi = np.fft.ifft2(self.phi_).real + self.V
         self.E = np.zeros((self.n,self.n,2))
-        A = np.gradient(self.phi)
-        self.E[:,:,0] = A[0]/self.dx
-        self.E[:,:,1] = A[1]/self.dx
- 
- 
+        B = (np.roll(self.phi,1,0)-np.roll(self.phi,-1,0))/2/self.dx
+        C = (np.roll(self.phi,1,1)-np.roll(self.phi,-1,1))/2/self.dx
+        self.E[:,:,0] = B
+        self.E[:,:,1] = C
+   
     def field_to_particules(self): #Transforms a field on the grid to a force applied to particules, returns the array of forces on the particules
         Force = self.q*self.E
         j = (self.pos/self.dx).astype(int)
-        factor = ((self.pos - self.X[[j[:,0]],[j[:,1]]])/4)[0]
+        factor = ((self.pos - self.X[[j[:,0]],[j[:,1]]])/4/self.dx)[0]
         multiply = np.zeros((self.N,2,2))
         multiply[:,0,0]  = factor[:,0]
         multiply[:,0,1]  = factor[:,0]
         multiply[:,1,0]  = factor[:,1]
         multiply[:,1,1]  = factor[:,1]
-        self.F = (\
-                    (1./2 -  multiply[:,0] -  multiply[:,1])*Force[[j[:,0]],[j[:,1]]][0]/self.dx + \
-                    (1./4 -  multiply[:,0] +  multiply[:,1])*Force[[j[:,0]],[(j[:,1]+1)%self.n]][0]/self.dx + \
-                    (1./4 +  multiply[:,0] -  multiply[:,1])*Force[[(j[:,0]+1)%self.n],[j[:,1]]][0]/self.dx + \
-                    (1./4 +  multiply[:,0] -  multiply[:,1])*Force[[(j[:,0]+1)%self.n],[(j[:,1]+1)%self.n]][0]/self.dx)
+        
+        # f ( x , y ) ≈ f ( 0 , 0 ) ( 1 − x ) ( 1 − y ) + f ( 1 , 0 ) x ( 1 − y ) + f ( 0 , 1 ) ( 1 − x ) y + f ( 1 , 1 ) x y 
+        #This is bilinear interpolation
+        self.F =    Force[[j[:,0]],[j[:,1]]][0]*(1-multiply[:,0])*(1-multiply[:,1]) + \
+                    Force[[j[:,0]],[(j[:,1]+1)%self.n]][0]*(1-multiply[:,0])*(multiply[:,1]) + \
+                    Force[[(j[:,0]+1)%self.n],[j[:,1]]][0]*(multiply[:,0])*(1-multiply[:,1]) + \
+                    Force[[(j[:,0]+1)%self.n],[(j[:,1]+1)%self.n]][0]*(multiply[:,0])*(multiply[:,1])
                    
            
     def move_particules(self): #Moves every particule according to the new speed
@@ -133,5 +135,4 @@ class Plasma(object):
         np.save("../results/2Dposition.npy", self.positionsstored)
         np.save("../results/2Dspeed.npy", self.speedstored)
         np.save("../results/2Denergy.npy", self.energystored)
-        print(self.positionsstored[500])
         #np.savetxt("../results/field.dat", self.electric)
