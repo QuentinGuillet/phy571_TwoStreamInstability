@@ -20,7 +20,9 @@ class Plasma(object):
     def save_to_array(self):
         self.positionsstored[self.timestamp] = self.pos
         self.speedstored[self.timestamp] = self.speed 
-        self.energystored[self.timestamp] = self.energy     
+        self.energystored[self.timestamp] = self.energy
+        self.densitystored[self.timestamp] = np.absolute(self.rho_) 
+        self.wavevectorstored[self.timestamp] = self.K/self.n
         #self.electric[self.timestamp] = self.E     
     
     def compute_energy(self):
@@ -48,11 +50,15 @@ class Plasma(object):
         self.energystored = np.zeros(T)
         self.electric = np.zeros((T,n))
         
+        self.wavevectorstored = np.zeros((T,n))
+        self.densitystored = np.zeros((T,n))
+        
         '''Creating the particules and information arrays'''
         self.pos = pos_init #pos_init should be a numpy array with dimension N (at time t=0)
         self.speed = speed_init #at time t = dt/2, see the leapfrog algorithm
         self.rho = np.zeros(n)
         self.rho_ = np.zeros(n,dtype=np.complex64)
+        self.K = np.zeros(n)
         self.phi = np.zeros(n)
         self.phi_ = np.zeros(n,dtype=np.complex64)
         self.E = np.zeros(n)
@@ -84,8 +90,8 @@ class Plasma(object):
         
     def compute_ElectricField(self):
         self.rho_ = np.fft.fft(self.rho)
-        K = np.fft.fftfreq(self.n,self.dx)*2*np.pi
-        self.phi_[1:] = self.rho_[1:]/self.eps0/K[1:]**2
+        self.K = np.fft.fftfreq(self.n,self.dx)*2*np.pi
+        self.phi_[1:] = self.rho_[1:]/self.eps0/self.K[1:]**2
         self.phi = np.fft.ifft(self.phi_).real + self.V
         self.E = (np.roll(self.phi,1)-np.roll(self.phi,-1))/2/self.dx        # E(x) = - (phi(x+dx)-phi(x-dx)/2dx)
  
@@ -131,4 +137,6 @@ class Plasma(object):
         np.save("../results/position.npy", self.positionsstored)
         np.save("../results/speed.npy", self.speedstored)
         np.save("../results/energy.npy", self.energystored)
+        np.save("../results/wavevector.npy", self.wavevectorstored)
+        np.save("../results/density.npy", self.densitystored)
         #np.savetxt("../results/field.dat", self.electric)
